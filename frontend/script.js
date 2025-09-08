@@ -39,7 +39,7 @@ function preloadReports() {
   localStorage.setItem("reports", JSON.stringify(reports));
 }
 
-// Load latest reports into home.html
+// Load latest reports into index.html
 function loadLatestReports() {
   preloadReports();
 

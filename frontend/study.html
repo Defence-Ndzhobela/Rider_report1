@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Study Road Signs - Alert Rider</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.4/dist/teachablemachine-image.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <button id="darkModeToggle" style="position:absolute; top:20px; right:20px; padding:8px 12px; border:none; border-radius:8px; cursor:pointer;">🌙</button>
+
+    <h1>📖 Study Road Signs</h1>
+    <p>Upload a road sign image and the AI will recognize and explain it 🚦</p>
+
+    <input type="file" id="imageUpload" accept="image/*" required>
+    <textarea id="predictionResult" readonly placeholder="Prediction results will appear here..."></textarea>
+    <div id="explanation" style="margin-top: 15px; font-weight: bold; color: #333;"></div>
+
+    <a href="home.html" class="back-link">⬅ Back</a>
+  </div>
+
+  <script>
+    // Dark mode toggle
+    const toggleBtn = document.getElementById("darkModeToggle");
+    if(localStorage.getItem("darkMode") === "enabled") {
+      document.body.classList.add("dark-mode");
+      toggleBtn.innerText = "☀️";
+    }
+    toggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("dark-mode");
+      if(document.body.classList.contains("dark-mode")) {
+        localStorage.setItem("darkMode", "enabled");
+        toggleBtn.innerText = "☀️";
+      } else {
+        localStorage.setItem("darkMode", "disabled");
+        toggleBtn.innerText = "🌙";
+      }
+    });
+  </script>
+
+  <script type="text/javascript">
+    const modelBaseURL = "https://teachablemachine.withgoogle.com/models/Cc86R7yOo/";
+    let model, maxPredictions;
+
+    async function loadModel() {
+      const modelURL = modelBaseURL + "model.json";
+      const metadataURL = modelBaseURL + "metadata.json";
+      model = await tmImage.load(modelURL, metadataURL);
+      maxPredictions = model.getTotalClasses();
+    }
+
+    loadModel();
+
+    const signDescriptions = {
+      "Stop Sign": "A Stop sign means you must bring your vehicle to a complete halt before proceeding safely.",
+      "Speed Hump Sign": "This sign warns drivers about a speed hump ahead. Reduce speed to avoid damage and discomfort.",
+      "Speed Limit Sign": "A Speed Limit sign tells drivers the maximum legal speed allowed on that road.",
+      "No Entry Road Sign": "No Entry means vehicles are not allowed to enter this road from that direction.",
+      "Children Warning Sign": "This warns drivers that children may be crossing or playing nearby. Slow down and drive carefully.",
+      "Parking Reservation Sign": "Indicates a reserved parking area, often for specific users such as disabled drivers.",
+      "T Junction Sign": "Warns that the road you are on will end soon and you must turn left or right.",
+      "Mini-circle road sign": "Indicates a mini roundabout ahead. Drivers must give way and circulate clockwise.",
+      "One Way Sign": "This means traffic flows only in one direction. Do not enter against the arrow.",
+      "Traffic Lights": "Warns of traffic signals ahead. Prepare to stop or follow the light rules."
+    };
+
+    document.getElementById("imageUpload").addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const img = new Image();
+      img.src = window.URL.createObjectURL(file);
+      img.onload = async () => {
+        if (!model) await loadModel();
+
+        const prediction = await model.predict(img);
+
+        let resultsText = "";
+        let bestClass = null;
+        let bestProb = 0;
+
+        prediction.forEach(p => {
+          let percent = (p.probability * 100).toFixed(2);
+          resultsText += `${p.className}: ${percent}%\n`;
+
+          if (p.probability > bestProb) {
+            bestProb = p.probability;
+            bestClass = p.className;
+          }
+        });
+
+        document.getElementById("predictionResult").value = resultsText.trim();
+
+        if (bestProb * 100 >= 90 && bestClass && signDescriptions[bestClass]) {
+          document.getElementById("explanation").innerText =
+            `🛑 Detected Sign: ${bestClass}\n\n📖 Meaning: ${signDescriptions[bestClass]}`;
+        } else {
+          document.getElementById("explanation").innerText = "🚫 No sign detected (confidence < 90%).";
+        }
+      };
+    });
+  </script>
+</body>
+</html>

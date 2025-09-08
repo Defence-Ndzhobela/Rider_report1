@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Navigation - Alert Rider</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <button id="darkModeToggle" style="position:absolute; top:20px; right:20px; padding:8px 12px; border:none; border-radius:8px; cursor:pointer;">🌙</button>
+
+    <h1>🗺️ Navigation</h1>
+    <input type="text" id="destination" placeholder="Enter destination..." style="width: 80%; padding: 10px; margin-bottom: 10px;">
+    <button onclick="searchPlace()" style="padding:10px;">Go</button>
+    <div id="map" style="width:100%; height:500px; margin-top:10px; margin-bottom:20px;"></div>
+    <a href="home.html" class="back-link">⬅ Back</a>
+  </div>
+
+  <script>
+    // Dark mode toggle
+    const toggleBtn = document.getElementById("darkModeToggle");
+    if(localStorage.getItem("darkMode") === "enabled") {
+      document.body.classList.add("dark-mode");
+      toggleBtn.innerText = "☀️";
+    }
+    toggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("dark-mode");
+      if(document.body.classList.contains("dark-mode")) {
+        localStorage.setItem("darkMode", "enabled");
+        toggleBtn.innerText = "☀️";
+      } else {
+        localStorage.setItem("darkMode", "disabled");
+        toggleBtn.innerText = "🌙";
+      }
+    });
+
+    var map = L.map('map').fitWorld();
+    var userLocation = null;
+    var routingControl = null;
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+
+    map.locate({ setView: true, maxZoom: 16 });
+
+    function onLocationFound(e) {
+      userLocation = e.latlng;
+      L.marker(userLocation).addTo(map).bindPopup("You are here").openPopup();
+    }
+    map.on('locationfound', onLocationFound);
+
+    function onLocationError(e) {
+      alert("Could not get your location. Allow location access.");
+    }
+    map.on('locationerror', onLocationError);
+
+    function searchPlace() {
+      var query = document.getElementById("destination").value;
+      if(!query) { alert("Enter a destination."); return; }
+
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`)
+      .then(res => res.json())
+      .then(data => {
+        if(data.length > 0) {
+          var destLatLng = [data[0].lat, data[0].lon];
+          L.marker(destLatLng).addTo(map).bindPopup("Destination: " + query).openPopup();
+          map.setView(destLatLng, 14);
+
+          if(routingControl) map.removeControl(routingControl);
+          if(userLocation) {
+            routingControl = L.Routing.control({
+              waypoints: [L.latLng(userLocation.lat, userLocation.lng), L.latLng(destLatLng[0], destLatLng[1])],
+              routeWhileDragging: true
+            }).addTo(map);
+          } else alert("User location not found yet. Please allow GPS.");
+        } else alert("Place not found. Try again.");
+      }).catch(err => alert("Error searching: " + err));
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+/* ================== General Styles ================== */
+body {
+  font-family: 'Arial', sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #f4f6f9;
+  color: #333;
+}
+
+.app-container {
+  max-width: 600px;
+  margin: 30px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 15px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+  position: relative;
+}
+
+h1 {
+  color: #007bff;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.button-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.action-btn {
+  display: block;
+  background: #007bff;
+  color: #fff;
+  padding: 15px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: bold;
+  text-align: center;
+  transition: 0.2s;
+}
+
+.action-btn:hover {
+  background: #0056b3;
+}
+
+label {
+  display: block;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+input, textarea {
+  width: 100%;
+  padding: 10px;
+  margin-top: 5px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+textarea {
+  resize: vertical;
+}
+
+button[type="submit"] {
+  margin-top: 15px;
+  width: 100%;
+  cursor: pointer;
+  background: #28a745;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: bold;
+  padding: 12px;
+  transition: 0.2s;
+}
+
+button[type="submit"]:hover {
+  background: #218838;
+}
+
+.back-link {
+  display: inline-block;
+  margin-top: 20px;
+  color: #007bff;
+  text-decoration: none;
+}
+
+.report-card {
+  text-align: left;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.report-card img {
+  max-width: 100%;
+  margin-top: 10px;
+  border-radius: 8px;
+}
+
+textarea#predictionResult {
+  height: 120px;
+}
+
+/* ================== Dark Mode ================== */
+body.dark-mode {
+  background: #121212;
+  color: #e0e0e0;
+}
+
+body.dark-mode .app-container {
+  background: #1e1e1e;
+  color: #e0e0e0;
+}
+
+body.dark-mode .action-btn {
+  background: #bb86fc;
+  color: #121212;
+}
+
+body.dark-mode .action-btn:hover {
+  background: #9b59b6;
+}
+
+body.dark-mode .back-link {
+  color: #bb86fc;
+}
+
+body.dark-mode input,
+body.dark-mode textarea {
+  background: #2c2c2c;
+  color: #e0e0e0;
+  border: 1px solid #555;
+}
+
+body.dark-mode .report-card {
+  background: #1e1e1e;
+  border-color: #333;
+}

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Hazard - Alert Rider</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Dark mode toggle -->
+    <button id="darkModeToggle" style="position:absolute; top:20px; right:20px; padding:8px 12px; border:none; border-radius:8px; cursor:pointer;">🌙</button>
+
+    <h1>🚨 Report Hazard</h1>
+
+    <form onsubmit="return saveReport(event)">
+      <label>Street Address:</label>
+      <input type="text" id="street" placeholder="e.g. 19 Ameshoff Street" required>
+
+      <label>Area/City:</label>
+      <input type="text" id="area" placeholder="e.g. Braamfontein" required>
+
+      <label>Detected GPS (auto-filled):</label>
+      <input type="text" id="gpsLocation" readonly>
+
+      <div id="map" style="width:100%; height:300px; margin:15px 0;"></div>
+
+      <label>Time:</label>
+      <input type="datetime-local" id="time" required>
+
+      <label>Description:</label>
+      <textarea id="description" required></textarea>
+      <button type="button" id="aiSuggestionBtn" style="margin-top:8px; padding:6px 12px; border:none; border-radius:6px; background:#007bff; color:white; cursor:pointer;">✨ AI Suggestion</button>
+      <button type="button" id="voiceBtn" style="margin-top:8px; padding:6px 12px; border:none; border-radius:6px; background:#28a745; color:white; cursor:pointer;">🎤 Record Voice</button>
+
+      <button type="submit" style="margin-top:12px;">Submit Report</button>
+    </form>
+
+    <a href="home.html" class="back-link">⬅ Back</a>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    // ================= Dark Mode Toggle =================
+    const toggleBtn = document.getElementById("darkModeToggle");
+    if(localStorage.getItem("darkMode") === "enabled") {
+      document.body.classList.add("dark-mode");
+      toggleBtn.innerText = "☀️";
+    }
+    toggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("dark-mode");
+      if(document.body.classList.contains("dark-mode")) {
+        localStorage.setItem("darkMode", "enabled");
+        toggleBtn.innerText = "☀️";
+      } else {
+        localStorage.setItem("darkMode", "disabled");
+        toggleBtn.innerText = "🌙";
+      }
+    });
+
+    // ================= Map & GPS =================
+    let map = L.map('map').fitWorld();
+    let marker;
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+    map.locate({ setView: true, maxZoom: 16 });
+    map.on('locationfound', (e) => {
+      marker = L.marker(e.latlng).addTo(map).bindPopup("📍 You are here").openPopup();
+      document.getElementById("gpsLocation").value = e.latlng.lat.toFixed(6) + ", " + e.latlng.lng.toFixed(6);
+    });
+    map.on('locationerror', () => {
+      document.getElementById("gpsLocation").value = "Location not found";
+      alert("⚠️ Could not detect GPS. Type address manually.");
+    });
+
+    // ================= Save Report =================
+    function saveReport(event) {
+      event.preventDefault();
+
+      let street = document.getElementById("street").value;
+      let area = document.getElementById("area").value;
+      let gps = document.getElementById("gpsLocation").value;
+      let time = document.getElementById("time").value;
+      let description = document.getElementById("description").value;
+
+      let locationFull = `${street}, ${area} (GPS: ${gps})`;
+
+      let report = {
+        location: locationFull,
+        time: time,
+        description: description,
+        photo: null // No photo anymore
+      };
+
+      let reports = JSON.parse(localStorage.getItem("reports")) || [];
+      reports.unshift(report);
+      localStorage.setItem("reports", JSON.stringify(reports));
+
+      alert("✅ Report submitted!");
+      window.location.href = "home.html";
+      return false;
+    }
+
+    // ================= AI Suggestion =================
+    document.getElementById("aiSuggestionBtn").addEventListener("click", async () => {
+      const description = document.getElementById("description").value;
+      if (!description.trim()) { alert("⚠️ Please enter a description first."); return; }
+
+      try {
+        const response = await fetch("http://localhost:5000/rewrite-description", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ description }),
+        });
+
+        const data = await response.json();
+        if (data.suggestion) {
+          document.getElementById("description").value = data.suggestion;
+        } else {
+          alert("⚠️ Failed to get AI suggestion.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("⚠️ Error connecting to AI service.");
+      }
+    });
+
+    // ================= Voice Input =================
+    const voiceBtn = document.getElementById("voiceBtn");
+    if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
+      voiceBtn.disabled = true;
+      voiceBtn.innerText = "🎤 Not supported";
+    } else {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-ZA"; // South African English
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      voiceBtn.addEventListener("click", () => {
+        recognition.start();
+        voiceBtn.innerText = "🎙️ Listening...";
+      });
+
+      recognition.onresult = (event) => {
+        const speechResult = event.results[0][0].transcript;
+        document.getElementById("description").value = speechResult;
+        voiceBtn.innerText = "🎤 Record Voice";
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error", event.error);
+        voiceBtn.innerText = "🎤 Record Voice";
+        alert("⚠️ Could not capture voice. Please try again.");
+      };
+
+      recognition.onend = () => {
+        voiceBtn.innerText = "🎤 Record Voice";
+      };
+    }
+  </script>
+</body>
+</html>

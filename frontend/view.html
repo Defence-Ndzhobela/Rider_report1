@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>View Reports - Alert Rider</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .report-card img {
+      width: 100%;
+      max-width: 500px;
+      height: auto;
+      display: block;
+      margin-top: 10px;
+      border-radius: 12px;
+      object-fit: cover;
+    }
+    .report-card {
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      background-color: #f9f9f9;
+    }
+    .report-card button, .report-card select {
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <button id="darkModeToggle" style="position:absolute; top:20px; right:20px; padding:8px 12px; border:none; border-radius:8px; cursor:pointer;">🌙</button>
+
+    <h1>📋 View Reports</h1>
+    <div id="reportsContainer"></div>
+
+    <div style="display:flex; justify-content:space-between; margin-top:15px;">
+      <button id="prevBtn" style="padding:8px 12px;">⬅ Previous</button>
+      <button id="nextBtn" style="padding:8px 12px;">Next ➡</button>
+    </div>
+
+    <a href="home.html" class="back-link">⬅ Back</a>
+  </div>
+
+  <script>
+    const toggleBtn = document.getElementById("darkModeToggle");
+    if(localStorage.getItem("darkMode") === "enabled") {
+      document.body.classList.add("dark-mode");
+      toggleBtn.innerText = "☀️";
+    }
+    toggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("dark-mode");
+      if(document.body.classList.contains("dark-mode")) {
+        localStorage.setItem("darkMode", "enabled");
+        toggleBtn.innerText = "☀️";
+      } else {
+        localStorage.setItem("darkMode", "disabled");
+        toggleBtn.innerText = "🌙";
+      }
+    });
+
+    let reports = JSON.parse(localStorage.getItem("reports")) || [];
+    let currentPage = 1;
+    const reportsPerPage = 5;
+
+    async function translateText(text, targetLang) {
+      if (!text || !targetLang) return "⚠️ Translation failed";
+      try {
+        const response = await fetch("/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, target: targetLang })
+        });
+        const data = await response.json();
+        return data.translatedText || "⚠️ Translation failed";
+      } catch (err) {
+        console.error(err);
+        return "⚠️ Translation failed";
+      }
+    }
+
+    function displayReports(page = 1) {
+      const container = document.getElementById("reportsContainer");
+      container.innerHTML = "";
+
+      if (reports.length === 0) {
+        container.innerHTML = "<p>No reports submitted yet.</p>";
+        return;
+      }
+
+      const start = (page - 1) * reportsPerPage;
+      const end = start + reportsPerPage;
+      const paginatedReports = reports.slice(start, end);
+
+      paginatedReports.forEach((report, index) => {
+        let locationParts = report.location.split("(GPS:");
+        let streetArea = locationParts[0].trim();
+        let gps = locationParts[1] ? locationParts[1].replace(")", "").trim() : "";
+
+        let reportCard = document.createElement("div");
+        reportCard.classList.add("report-card");
+        reportCard.innerHTML = `
+          <h3>Report #${start + index + 1}</h3>
+          <p><strong>📍 ${streetArea}</strong></p>
+          ${gps ? `<p style="font-size:0.9em;color:gray;">
+            GPS: ${gps} 
+            <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(gps)}" target="_blank" style="margin-left:10px; color:#007bff;">📍 Open in Maps</a>
+          </p>` : ""}
+          <p><strong>🕒 Time:</strong> ${report.time}</p>
+          <p><strong>📝 Description:</strong> ${report.description}</p>
+          ${report.photo ? `<img src="${report.photo}" alt="Report Photo">` : ""}
+          <button class="readBtn" style="padding:6px 12px; border:none; border-radius:6px; background:#007bff; color:white;">🔊 Read for me</button>
+          <button class="translateBtn" style="margin-left:10px; padding:6px 12px; border:none; border-radius:6px; background:#28a745; color:white;">🌍 Translate</button>
+          <select class="langSelect" style="margin-left:5px; padding:4px;">
+            <option value="af">Afrikaans</option>
+            <option value="en">English</option>
+            <option value="xh">isiXhosa</option>
+            <option value="zu">isiZulu</option>
+            <option value="st">Sesotho</option>
+            <option value="tn">Setswana</option>
+            <option value="ve">Tshivenda</option>
+            <option value="ts">Xitsonga</option>
+            <option value="ss">siSwati</option>
+            <option value="nr">isiNdebele</option>
+          </select>
+          <p class="translatedText" style="margin-top:5px; font-style:italic;"></p>
+        `;
+        container.appendChild(reportCard);
+      });
+
+      // Read for Me
+      document.querySelectorAll(".readBtn").forEach((btn, i) => {
+        btn.addEventListener("click", () => {
+          const report = paginatedReports[i];
+          const translatedText = btn.parentElement.querySelector(".translatedText").textContent;
+          const textToRead = translatedText ? translatedText.replace("Translated: ", "") : report.description;
+          const utterance = new SpeechSynthesisUtterance(textToRead);
+          utterance.lang = "en-ZA";
+          speechSynthesis.speak(utterance);
+        });
+      });
+
+      // Translate functionality
+      document.querySelectorAll(".translateBtn").forEach((btn, i) => {
+        btn.addEventListener("click", async () => {
+          const report = paginatedReports[i];
+          const langSelect = btn.nextElementSibling;
+          const targetLang = langSelect.value;
+          const translatedP = btn.parentElement.querySelector(".translatedText");
+
+          translatedP.textContent = "Translating...";
+          const translated = await translateText(report.description, targetLang);
+          translatedP.textContent = `Translated: ${translated}`;
+        });
+      });
+
+      document.getElementById("prevBtn").disabled = page === 1;
+      document.getElementById("nextBtn").disabled = end >= reports.length;
+    }
+
+    document.getElementById("prevBtn").addEventListener("click", () => {
+      if(currentPage > 1) {
+        currentPage--;
+        displayReports(currentPage);
+      }
+    });
+
+    document.getElementById("nextBtn").addEventListener("click", () => {
+      if(currentPage * reportsPerPage < reports.length) {
+        currentPage++;
+        displayReports(currentPage);
+      }
+    });
+
+    displayReports(currentPage);
+  </script>
+</body>
+</html>

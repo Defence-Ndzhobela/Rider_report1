@@ -5,111 +5,96 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Report Hazard - Alert Rider</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
-  <div class="app-container">
-    <!-- Dark mode toggle -->
-    <button id="darkModeToggle" style="position:absolute; top:20px; right:20px; padding:8px 12px; border:none; border-radius:8px; cursor:pointer;">🌙</button>
+  <h1>Report Hazard</h1>
+  
+  <textarea id="description" placeholder="Describe the hazard..."></textarea>
+  <button id="aiSuggestionBtn">Get AI Suggestion</button>
 
-    <h1>🚨 Report Hazard</h1>
+  <h2>Latest Reports</h2>
+  <div id="latestReports"></div>
 
-    <form onsubmit="return saveReport(event)">
-      <label>Street Address:</label>
-      <input type="text" id="street" placeholder="e.g. 19 Ameshoff Street" required>
-
-      <label>Area/City:</label>
-      <input type="text" id="area" placeholder="e.g. Braamfontein" required>
-
-      <label>Detected GPS (auto-filled):</label>
-      <input type="text" id="gpsLocation" readonly>
-
-      <div id="map" style="width:100%; height:300px; margin:15px 0;"></div>
-
-      <label>Time:</label>
-      <input type="datetime-local" id="time" required>
-
-      <label>Description:</label>
-      <textarea id="description" required></textarea>
-      <button type="button" id="aiSuggestionBtn" style="margin-top:8px; padding:6px 12px; border:none; border-radius:6px; background:#007bff; color:white; cursor:pointer;">✨ AI Suggestion</button>
-      <button type="button" id="voiceBtn" style="margin-top:8px; padding:6px 12px; border:none; border-radius:6px; background:#28a745; color:white; cursor:pointer;">🎤 Record Voice</button>
-
-      <button type="submit" style="margin-top:12px;">Submit Report</button>
-    </form>
-
-    <a href="index.html" class="back-link">⬅ Back</a>
-  </div>
-
-  <script src="script.js"></script>
   <script>
-    // ================= Dark Mode Toggle =================
-    const toggleBtn = document.getElementById("darkModeToggle");
-    if(localStorage.getItem("darkMode") === "enabled") {
-      document.body.classList.add("dark-mode");
-      toggleBtn.innerText = "☀️";
+    // Preload reports only if none exist yet
+    function preloadReports() {
+      const existingReports = JSON.parse(localStorage.getItem("reports")) || [];
+      if (existingReports.length > 0) return;
+
+      const reports = [
+        {
+          location: "19 Ameshoff Street, Braamfontein, Johannesburg (GPS: -26.1961, 28.0416)",
+          time: "2025-09-05 08:30",
+          description: "Pothole causing water accumulation near the intersection.",
+          photo: null
+        },
+        {
+          location: "123 Main Road, Cape Town (GPS: -33.9258, 18.4232)",
+          time: "2025-09-04 14:15",
+          description: "Fallen tree blocking part of the cycle lane.",
+          photo: null
+        },
+        {
+          location: "45 Church Street, Durban (GPS: -29.8587, 31.0218)",
+          time: "2025-09-03 09:45",
+          description: "Construction debris on the road, slippery surface warning.",
+          photo: null
+        },
+        {
+          location: "7 Long Street, Cape Town (GPS: -33.9255, 18.4233)",
+          time: "2025-09-02 17:20",
+          description: "Broken traffic light at intersection, drive cautiously.",
+          photo: null
+        },
+        {
+          location: "88 Albert Street, Pretoria (GPS: -25.7479, 28.2293)",
+          time: "2025-09-01 12:00",
+          description: "Loose manhole cover near pedestrian crossing.",
+          photo: null
+        }
+      ];
+
+      localStorage.setItem("reports", JSON.stringify(reports));
     }
-    toggleBtn.addEventListener("click", () => {
-      document.body.classList.toggle("dark-mode");
-      if(document.body.classList.contains("dark-mode")) {
-        localStorage.setItem("darkMode", "enabled");
-        toggleBtn.innerText = "☀️";
-      } else {
-        localStorage.setItem("darkMode", "disabled");
-        toggleBtn.innerText = "🌙";
-      }
-    });
 
-    // ================= Map & GPS =================
-    let map = L.map('map').fitWorld();
-    let marker;
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-
-    map.locate({ setView: true, maxZoom: 16 });
-    map.on('locationfound', (e) => {
-      marker = L.marker(e.latlng).addTo(map).bindPopup("📍 You are here").openPopup();
-      document.getElementById("gpsLocation").value = e.latlng.lat.toFixed(6) + ", " + e.latlng.lng.toFixed(6);
-    });
-    map.on('locationerror', () => {
-      document.getElementById("gpsLocation").value = "Location not found";
-      alert("⚠️ Could not detect GPS. Type address manually.");
-    });
-
-    // ================= Save Report =================
-    function saveReport(event) {
-      event.preventDefault();
-
-      let street = document.getElementById("street").value;
-      let area = document.getElementById("area").value;
-      let gps = document.getElementById("gpsLocation").value;
-      let time = document.getElementById("time").value;
-      let description = document.getElementById("description").value;
-
-      let locationFull = `${street}, ${area} (GPS: ${gps})`;
-
-      let report = {
-        location: locationFull,
-        time: time,
-        description: description,
-        photo: null // No photo anymore
-      };
+    // Load latest reports into index.html
+    function loadLatestReports() {
+      preloadReports();
 
       let reports = JSON.parse(localStorage.getItem("reports")) || [];
-      reports.unshift(report);
-      localStorage.setItem("reports", JSON.stringify(reports));
+      const latestReports = document.getElementById("latestReports");
 
-      alert("✅ Report submitted!");
-      window.location.href = "index.html";
-      return false;
+      if (reports.length === 0) {
+        latestReports.innerHTML = "<p>No reports yet.</p>";
+        return;
+      }
+
+      // Always sort so newest report is first
+      reports.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+      // Show only last 5
+      const lastFive = reports.slice(0, 5);
+      latestReports.innerHTML = lastFive.map(r => `
+        <div class="report-card">
+          <p><strong>${r.time}</strong> - ${r.description}</p>
+          <p>📍 ${r.location}</p>
+        </div>
+      `).join("");
     }
 
-    // ================= AI Suggestion =================
+    loadLatestReports();
+
+    // AI Suggestion
     document.getElementById("aiSuggestionBtn").addEventListener("click", async () => {
       const description = document.getElementById("description").value;
-      if (!description.trim()) { alert("⚠️ Please enter a description first."); return; }
+
+      if (!description.trim()) {
+        alert("⚠️ Please enter a description first.");
+        return;
+      }
 
       try {
-        const response = await fetch("http://localhost:5000/rewrite-description", {
+        const response = await fetch("https://rider-report1-backend.onrender.com/rewrite-description", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ description }),
@@ -126,40 +111,6 @@
         alert("⚠️ Error connecting to AI service.");
       }
     });
-
-    // ================= Voice Input =================
-    const voiceBtn = document.getElementById("voiceBtn");
-    if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
-      voiceBtn.disabled = true;
-      voiceBtn.innerText = "🎤 Not supported";
-    } else {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognition.lang = "en-ZA"; // South African English
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      voiceBtn.addEventListener("click", () => {
-        recognition.start();
-        voiceBtn.innerText = "🎙️ Listening...";
-      });
-
-      recognition.onresult = (event) => {
-        const speechResult = event.results[0][0].transcript;
-        document.getElementById("description").value = speechResult;
-        voiceBtn.innerText = "🎤 Record Voice";
-      };
-
-      recognition.onerror = (event) => {
-        console.error("Speech recognition error", event.error);
-        voiceBtn.innerText = "🎤 Record Voice";
-        alert("⚠️ Could not capture voice. Please try again.");
-      };
-
-      recognition.onend = () => {
-        voiceBtn.innerText = "🎤 Record Voice";
-      };
-    }
   </script>
 </body>
 </html>

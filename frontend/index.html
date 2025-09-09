@@ -3,122 +3,239 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Alert Rider - Home</title>
+  <title>Alert Rider - Dashboard</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    textarea { width: 100%; height: 100px; margin-bottom: 10px; padding: 10px; }
-    button { padding: 10px 15px; margin-bottom: 20px; cursor: pointer; }
-    .report-card { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
-    .report-card p { margin: 5px 0; }
+    /* Map container */
+    #map {
+      width: 100%;
+      height: 250px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    /* Latest Reports Card */
+    .latest-reports {
+      margin-top: 10px;
+    }
+    .report-card {
+      background: #f5f5f5;
+      padding: 12px 15px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .report-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .report-card img {
+      width: 100%;
+      max-height: 180px;
+      object-fit: cover;
+      margin-top: 8px;
+      border-radius: 8px;
+    }
+    .report-card button {
+      padding: 5px 10px;
+      margin-top: 5px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .report-card .readBtn {
+      background: #007bff;
+      color: white;
+    }
+    .report-card .translateBtn {
+      background: #28a745;
+      color: white;
+      margin-left: 5px;
+    }
+    .report-card select {
+      margin-left: 5px;
+      padding: 3px;
+      border-radius: 5px;
+    }
+
+    /* Read/View More Link styled as a button */
+    .more-reports-btn {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+    .more-reports-btn:hover {
+      background-color: #0056b3;
+    }
+
+    /* Dark mode for cards */
+    body.dark-mode .report-card {
+      background: #2b2b2b;
+      color: #f1f1f1;
+    }
+    body.dark-mode .more-reports-btn {
+      background-color: #1e6ac7;
+    }
+    body.dark-mode #map {
+      filter: brightness(0.85);
+    }
   </style>
 </head>
 <body>
-  <h1>Welcome to Alert Rider</h1>
+  <div class="app-container">
+    <!-- Dark mode toggle -->
+    <button id="darkModeToggle" style="position:absolute; top:20px; right:20px; padding:8px 12px; border:none; border-radius:8px; cursor:pointer;">🌙</button>
 
-  <section>
-    <h2>Submit a Hazard</h2>
-    <textarea id="description" placeholder="Describe the hazard..."></textarea>
-    <button id="aiSuggestionBtn">Get AI Suggestion</button>
-    <button id="submitBtn">Submit Report</button>
-  </section>
+    <h1>🚴 ALERT RIDER</h1>
+    <p style="text-align:center; margin-bottom:25px;">
+      Alert Rider helps you report road hazards, view live reports, learn about road signs, and navigate safely using your current location.
+    </p>
 
-  <section>
-    <h2>Latest Reports</h2>
-    <div id="latestReports"></div>
-  </section>
+    <div class="button-grid">
+      <a href="report.html" class="action-btn">🚨 Report Issue</a>
+      <a href="view.html" class="action-btn">📡 View Reports</a>
+      <a href="study.html" class="action-btn">📖 Study Road Signs</a>
+      <a href="navigation.html" class="action-btn">🗺️ Navigation</a>
+    </div>
+
+    <!-- Map showing user's current location -->
+    <div id="map"></div>
+
+    <section class="latest-reports">
+      <h2>Latest Reports</h2>
+      <div id="latestReports">No reports yet.</div>
+    </section>
+  </div>
 
   <script>
-    // Preload reports only if none exist yet
-    function preloadReports() {
-      const existingReports = JSON.parse(localStorage.getItem("reports")) || [];
-      if (existingReports.length > 0) return;
-
-      const reports = [
-        { location: "19 Ameshoff Street, Braamfontein, Johannesburg (GPS: -26.1961, 28.0416)", time: "2025-09-05 08:30", description: "Pothole causing water accumulation near the intersection.", photo: null },
-        { location: "123 Main Road, Cape Town (GPS: -33.9258, 18.4232)", time: "2025-09-04 14:15", description: "Fallen tree blocking part of the cycle lane.", photo: null },
-        { location: "45 Church Street, Durban (GPS: -29.8587, 31.0218)", time: "2025-09-03 09:45", description: "Construction debris on the road, slippery surface warning.", photo: null },
-        { location: "7 Long Street, Cape Town (GPS: -33.9255, 18.4233)", time: "2025-09-02 17:20", description: "Broken traffic light at intersection, drive cautiously.", photo: null },
-        { location: "88 Albert Street, Pretoria (GPS: -25.7479, 28.2293)", time: "2025-09-01 12:00", description: "Loose manhole cover near pedestrian crossing.", photo: null }
-      ];
-
-      localStorage.setItem("reports", JSON.stringify(reports));
+    // ================= Dark Mode =================
+    const toggleBtn = document.getElementById("darkModeToggle");
+    if(localStorage.getItem("darkMode") === "enabled") {
+      document.body.classList.add("dark-mode");
+      toggleBtn.innerText = "☀️";
     }
+    toggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("dark-mode");
+      if(document.body.classList.contains("dark-mode")) {
+        localStorage.setItem("darkMode", "enabled");
+        toggleBtn.innerText = "☀️";
+      } else {
+        localStorage.setItem("darkMode", "disabled");
+        toggleBtn.innerText = "🌙";
+      }
+    });
 
-    // Load latest reports
-    function loadLatestReports() {
-      preloadReports();
+    // ================= Map & GPS =================
+    let map = L.map('map').fitWorld();
+    let marker;
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-      const reports = JSON.parse(localStorage.getItem("reports")) || [];
-      const latestReports = document.getElementById("latestReports");
+    map.locate({ setView: true, maxZoom: 16 });
+    map.on('locationfound', (e) => {
+      marker = L.marker(e.latlng).addTo(map).bindPopup("📍 You are here").openPopup();
+      map.setView(e.latlng, 14);
+    });
+    map.on('locationerror', () => {
+      alert("⚠️ Could not detect location.");
+    });
 
-      if (reports.length === 0) {
-        latestReports.innerHTML = "<p>No reports yet.</p>";
+    // ================= Load Latest Reports =================
+    async function loadLatestReports() {
+      const latestReportsDiv = document.getElementById("latestReports");
+      let reports = JSON.parse(localStorage.getItem("reports")) || [];
+      latestReportsDiv.innerHTML = "";
+
+      if(reports.length === 0) {
+        latestReportsDiv.innerHTML = "<p>No reports submitted yet.</p>";
         return;
       }
 
-      // Sort newest first
-      reports.sort((a, b) => new Date(b.time) - new Date(a.time));
+      // Show latest 3 reports
+      const latest = reports.slice(0, 3);
+      latest.forEach((report, index) => {
+        let reportDiv = document.createElement("div");
+        reportDiv.classList.add("report-card");
+        reportDiv.innerHTML = `
+          <p><strong>📍 ${report.location.split("(GPS:")[0].trim()}</strong></p>
+          <p><strong>🕒 Time:</strong> ${report.time}</p>
+          <p><strong>📝 Description:</strong> ${report.description}</p>
+          ${report.photo ? `<img src="${report.photo}" alt="Report Photo">` : ""}
+          <button class="readBtn">🔊 Read for me</button>
+          <button class="translateBtn">🌍 Translate</button>
+          <select class="langSelect">
+            <option value="af">Afrikaans</option>
+            <option value="en">English</option>
+            <option value="xh">isiXhosa</option>
+            <option value="zu">isiZulu</option>
+            <option value="st">Sesotho</option>
+            <option value="tn">Setswana</option>
+            <option value="ve">Tshivenda</option>
+            <option value="ts">Xitsonga</option>
+            <option value="ss">siSwati</option>
+            <option value="nr">isiNdebele</option>
+          </select>
+          <p class="translatedText" style="font-style:italic; margin-top:3px;"></p>
+        `;
+        latestReportsDiv.appendChild(reportDiv);
+      });
 
-      const lastFive = reports.slice(0, 5);
-      latestReports.innerHTML = lastFive.map(r => `
-        <div class="report-card">
-          <p><strong>${r.time}</strong> - ${r.description}</p>
-          <p>📍 ${r.location}</p>
-        </div>
-      `).join("");
+      // Add "Read/View more reports..." link
+      if(reports.length > 3){
+        const moreLink = document.createElement("a");
+        moreLink.href = "view.html";
+        moreLink.textContent = "🔎 Read/View more reports...";
+        moreLink.classList.add("more-reports-btn");
+        latestReportsDiv.appendChild(moreLink);
+      }
+
+      // ================= Read for Me =================
+      document.querySelectorAll(".readBtn").forEach((btn, i) => {
+        btn.addEventListener("click", () => {
+          const report = latest[i];
+          const translatedText = btn.parentElement.querySelector(".translatedText").textContent;
+          const textToRead = translatedText ? translatedText.replace("Translated: ", "") : report.description;
+          const utterance = new SpeechSynthesisUtterance(textToRead);
+          utterance.lang = "en-ZA";
+          speechSynthesis.speak(utterance);
+        });
+      });
+
+      // ================= Translate =================
+      document.querySelectorAll(".translateBtn").forEach((btn, i) => {
+        btn.addEventListener("click", async () => {
+          const report = latest[i];
+          const langSelect = btn.nextElementSibling;
+          const targetLang = langSelect.value;
+          const translatedP = btn.parentElement.querySelector(".translatedText");
+
+          translatedP.textContent = "Translating...";
+          try {
+            const response = await fetch("https://rider-report1-backend.onrender.com/translate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: report.description, target: targetLang })
+            });
+            const data = await response.json();
+            translatedP.textContent = data.translatedText ? `Translated: ${data.translatedText}` : "⚠️ Translation failed.";
+          } catch(err) {
+            console.error(err);
+            translatedP.textContent = "⚠️ Translation failed.";
+          }
+        });
+      });
     }
 
     loadLatestReports();
-
-    // AI Suggestion
-    document.getElementById("aiSuggestionBtn").addEventListener("click", async () => {
-      const description = document.getElementById("description").value;
-
-      if (!description.trim()) {
-        alert("⚠️ Please enter a description first.");
-        return;
-      }
-
-      try {
-        const response = await fetch("https://rider-report1-backend.onrender.com/rewrite-description", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ description }),
-        });
-
-        const data = await response.json();
-
-        if (data.suggestion) {
-          document.getElementById("description").value = data.suggestion;
-        } else {
-          alert("⚠️ Failed to get AI suggestion.");
-        }
-      } catch (err) {
-        console.error(err);
-        alert("⚠️ Error connecting to AI service.");
-      }
-    });
-
-    // Submit hazard
-    document.getElementById("submitBtn").addEventListener("click", () => {
-      const description = document.getElementById("description").value.trim();
-      if (!description) {
-        alert("⚠️ Please enter a description first.");
-        return;
-      }
-
-      const location = prompt("Enter the location of the hazard:");
-      if (!location) return;
-
-      const reports = JSON.parse(localStorage.getItem("reports")) || [];
-      reports.push({ location, time: new Date().toISOString(), description, photo: null });
-      localStorage.setItem("reports", JSON.stringify(reports));
-
-      alert("✅ Report submitted!");
-      document.getElementById("description").value = "";
-      loadLatestReports();
-    });
   </script>
 </body>
 </html>
